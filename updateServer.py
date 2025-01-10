@@ -3,19 +3,29 @@ import os
 import zipfile
 import shutil
 from dotenv import load_dotenv
+from back_up import create_backup,list_backups
+from docker import stop_docker_compose,check_container_status,start_docker_compose
+from replace_folder import replace_folder
 
 load_dotenv()
 baseURL='https://www.curseforge.com/api/v1/mods/462042/files'
-temp_dir='new_version'
 
+temp_dir=os.getenv('TEMP_FOLDER')
 my_java_args=os.getenv('JAVA_ARGS')
 custom_motd=os.getenv('MOTD')
 minecraft_folder = os.getenv('MINECRAFT_FOLDER')
 
 def getServerFileId():
+   
     response = requests.get(f'{baseURL}?pageIndex=0&pageSize=20&sort=dateCreated&sortDescending=true&removeAlphas=true')
     if response.status_code == 200:
         data_latest = response.json()['data'][0]
+        print(f'Latest Version is {data_latest["displayName"]}')
+        answer = input("Do you want to contiune the Update? (y/n): ").lower().strip()
+        if answer in ['y', 'yes']:
+            print('Continuing with the update...')
+        elif answer in ['n', 'no']:
+           quit()
         if(data_latest['releaseType']==1 and data_latest['hasServerPack']==True):
             id=data_latest['id']
             addtionalFile=requests.get(f'{baseURL}/{id}/additional-files')
@@ -35,9 +45,11 @@ def getServerFile(serverFileId):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
+   
     response = requests.get(f'{baseURL}/{serverFileId}/download', headers=headers, stream=True)
     if response.status_code == 200:
         with open(filename, 'wb') as file:
+           
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     file.write(chunk)
@@ -80,6 +92,7 @@ def update_java_args(new_args):
         # Create new content with updated JAVA_ARGS
         new_content = []
         found = False
+       
         for line in lines:
             if line.startswith('JAVA_ARGS='):
                 new_content.append(f'JAVA_ARGS="{new_args}"\n')
@@ -97,6 +110,7 @@ def update_java_args(new_args):
     except Exception as e:
         print(f"Error updating JAVA_ARGS: {str(e)}")
         return False
+# amazonq-ignore-next-line
 def update_server_properties():
     filepath = os.path.join(temp_dir, 'server.properties')
     
@@ -150,9 +164,11 @@ def update_server_properties():
         print(f"- motd set to: {custom_motd}")
         return True
         
+   
     except Exception as e:
         print(f"Error updating server.properties: {str(e)}")
         return False
+# amazonq-ignore-next-line
 def update_parties_and_claims_config():
     filepath = os.path.join(temp_dir, 'config', 'openpartiesandclaims-server.toml')
     
@@ -198,6 +214,7 @@ def update_parties_and_claims_config():
         print("- Disabled claims")
         return True
         
+   
     except Exception as e:
         print(f"Error updating openpartiesandclaims-server.toml: {str(e)}")
         return False
@@ -214,19 +231,29 @@ eula=true"""
         print(f"Error creating eula.txt: {str(e)}")
         return False
 def copy_server_files():
+   
     if not minecraft_folder:
         print("Error: MINECRAFT_FOLDER not set in environment variables")
+        return False
+    if not temp_dir:
+        print("Error: TEMP_MC not set in environment variables")
+        return False
+    try:
+        os.makedirs(temp_dir, exist_ok=True)
+        print(f"Created or verified temp directory at: {temp_dir}")
+    except Exception as e:
+        print(f"Error creating temp directory: {str(e)}")
         return False
 
     files_to_copy = {
         'whitelist.json': 'whitelist.json',
         'server-icon.png': 'server-icon.png'
     }
-
+    print(f"Using temp directory: {temp_dir}")
     success = True
     for source_file, dest_file in files_to_copy.items():
         source_path = os.path.join(minecraft_folder, source_file)
-        dest_path = os.path.join('temp', dest_file)
+        dest_path = os.path.join(temp_dir, dest_file)
 
         try:
             if os.path.exists(source_path):
@@ -240,7 +267,8 @@ def copy_server_files():
             success = False
 
     return success  
-   
+
+
 
 if __name__ == "__main__":
     serverFileId = getServerFileId()
@@ -259,5 +287,28 @@ if __name__ == "__main__":
         update_parties_and_claims_config()
         create_eula()
         copy_server_files()
+        
+        if create_backup():
+            print("\nBackup completed successfully!")
+            list_backups()
+        else:
+            print("\nBackup failed!")
+            quit()
+            
+        if stop_docker_compose():
+            check_container_status()
+        else:
+            print("Failed to stop Docker Compose.")
+            quit()
+            
+        replace_folder()
+        
+        if start_docker_compose():
+            check_container_status()
+        else:
+            print("Failed to stop Docker Compose.")
+            quit()
+        
+        
     else:
         print("Failed to download server file.")

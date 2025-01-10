@@ -6,7 +6,7 @@ services:
     ports:
       - "25565:25565"
     volumes:
-      - ./bmc5:/minecraft
+      - ../bmc5:/minecraft
     restart: unless-stopped
     stdin_open: true
     tty: true
