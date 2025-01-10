@@ -1,0 +1,21 @@
+
+services:
+  minecraft-server:
+    build: .
+    container_name: minecraft-server
+    ports:
+      - "25565:25565"
+    volumes:
+      - ./bmc5:/minecraft
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command: bash -c "echo 'I agree' | /minecraft/start.sh"
+    deploy:
+      resources:
+        limits:
+          memory: 20G       # Limit memory to 20GB
+          cpus: "3.0"       # Limit CPU usage to 3 cores
+        reservations:
+          memory: 12G        # Reserve 8GB of memory
+          cpus: "2.0"  
