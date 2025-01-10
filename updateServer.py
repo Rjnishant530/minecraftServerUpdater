@@ -3,9 +3,9 @@ import os
 import zipfile
 import shutil
 from dotenv import load_dotenv
-from back_up import create_backup,list_backups
+from back_up import create_backup,list_backups,set_folder_permissions
 from docker import stop_docker_compose,check_container_status,start_docker_compose
-from replace_folder import replace_folder
+from replace_folder import replace_folder,copy_world_folder
 
 load_dotenv()
 baseURL='https://www.curseforge.com/api/v1/mods/462042/files'
@@ -168,7 +168,7 @@ def update_server_properties():
     except Exception as e:
         print(f"Error updating server.properties: {str(e)}")
         return False
-# amazonq-ignore-next-line
+
 def update_parties_and_claims_config():
     filepath = os.path.join(temp_dir, 'config', 'openpartiesandclaims-server.toml')
     
@@ -287,7 +287,7 @@ if __name__ == "__main__":
         update_parties_and_claims_config()
         create_eula()
         copy_server_files()
-        
+        set_folder_permissions()
         if create_backup():
             print("\nBackup completed successfully!")
             list_backups()
@@ -301,7 +301,11 @@ if __name__ == "__main__":
             print("Failed to stop Docker Compose.")
             quit()
             
+        copy_world_folder()    
         replace_folder()
+        
+        start_script_path = os.path.join(minecraft_folder, 'start.sh')
+        os.chmod(start_script_path, 0o755)
         
         if start_docker_compose():
             check_container_status()

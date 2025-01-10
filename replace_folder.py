@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-minecraft_folder = os.getenv('MINECRAFT_FOLDER', 'bmc5')
-temp_folder = os.getenv('TEMP_FOLDER', 'temp')
+minecraft_folder = os.getenv('MINECRAFT_FOLDER')
+temp_folder = os.getenv('TEMP_FOLDER')
 
 def replace_minecraft_folder():
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -57,6 +57,40 @@ def verify_folders():
     print("\nVerifying folders:")
     print(f"Temp folder exists: {os.path.exists(temp_path)}")
     print(f"Minecraft folder exists: {os.path.exists(minecraft_path)}")
+
+def copy_world_folder():
+    try:
+
+        if not minecraft_folder or not temp_folder:
+            print("Error: MINECRAFT_FOLDER or TEMP_FOLDER environment variable not set")
+            return False
+
+        # Source world folder
+        world_path = os.path.join(minecraft_folder, 'world')
+        
+        # Destination path
+        dest_path = os.path.join(temp_folder, 'world')
+
+        # Check if world folder exists
+        if not os.path.exists(world_path):
+            print(f"Error: World folder not found at {world_path}")
+            return False
+        
+        if os.path.exists(dest_path):
+            print(f"Removing existing world folder in temp directory")
+            shutil.rmtree(dest_path)
+            
+        print(f"Copying world folder to {dest_path}")
+        
+        # Copy the world folder (overwrite if exists)
+        shutil.copytree(world_path, dest_path)
+        
+        print("World folder copied successfully")
+        return True
+
+    except Exception as e:
+        print(f"Error copying world folder: {str(e)}")
+        quit()
 
 
 def replace_folder():

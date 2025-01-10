@@ -8,6 +8,10 @@ RUN apt-get update && apt-get install -y \
 # Set working directory (this is where the start.sh script will be mounted)
 WORKDIR /minecraft
 
+RUN echo '#!/bin/bash\n\
+chmod 755 /minecraft/start.sh\n\
+exec "$@"' > /entrypoint.sh && \
+    chmod 755 /entrypoint.sh
 # Expose Minecraft's default port
 EXPOSE 25565
 

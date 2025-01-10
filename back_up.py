@@ -3,13 +3,40 @@ import zipfile
 from datetime import datetime
 from dotenv import load_dotenv
 import glob
+import subprocess
 
-# amazonq-ignore-next-line
+load_dotenv()
+    
+minecraft_folder = os.getenv('MINECRAFT_FOLDER')
+backup_folder = '../backups'  # Local backup folder
+
+def set_folder_permissions():
+    try:
+        # Get current user
+        current_user = os.environ.get('USER')
+        if not current_user:
+            print("Could not determine current user")
+            return False
+
+        print(f"Setting permissions for {minecraft_folder}")
+        result = subprocess.run(
+            ['sudo', 'chown', '-R', f'{current_user}:{current_user}', minecraft_folder],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        
+        if result.returncode == 0:
+            print(f"Successfully set permissions for {minecraft_folder}")
+            return True
+        else:
+            print(f"Error setting permissions: {result.stderr}")
+            return False
+            
+    except Exception as e:
+        print(f"Error changing ownership: {str(e)}")
+        return False
 def create_backup():
-    # Load environment variables
-    load_dotenv()
-    minecraft_folder = os.getenv('MINECRAFT_FOLDER')
-    backup_folder = '../backups'  # Local backup folder
 
     if not minecraft_folder:
         print("Error: MINECRAFT_FOLDER not set in environment variables")
@@ -70,8 +97,6 @@ def create_backup():
 
 def list_backups():
     """List all existing backups with their creation times."""
-   
-    backup_folder = 'backups'
     if not os.path.exists(backup_folder):
         print("No backups folder found.")
         return
