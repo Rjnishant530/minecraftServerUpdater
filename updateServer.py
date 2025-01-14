@@ -2,21 +2,39 @@ import requests
 import os
 import zipfile
 import shutil
-from dotenv import load_dotenv
-from back_up import create_backup,list_backups,set_folder_permissions
-from docker import stop_docker_compose,check_container_status,start_docker_compose
+from back_up import start_backup,set_folder_permissions
 from replace_folder import replace_folder,copy_world_folder
 
-load_dotenv()
-baseURL='https://www.curseforge.com/api/v1/mods/462042/files'
+curgeForge_api_file_id = None
+rcon_password = None
+rcon_port = None
+temp_dir = None
+my_java_args = None
+custom_motd = None
+minecraft_folder = None
+baseURL = None
+backup_folder=None
+temp_folder=None
 
-temp_dir=os.getenv('TEMP_FOLDER')
-my_java_args=os.getenv('JAVA_ARGS')
-custom_motd=os.getenv('MOTD')
-minecraft_folder = os.getenv('MINECRAFT_FOLDER')
+def initialize_globals():
+    # Use global keyword to modify the global variables
+    global curgeForge_api_file_id, rcon_password, rcon_port, temp_dir, backup_folder, temp_folder
+    global my_java_args, custom_motd, minecraft_folder, baseURL
+    
+    # Assign values from environment variables
+    curgeForge_api_file_id = os.getenv('curgeForge_api_file_id')
+    rcon_password = os.getenv('MINECRAFT_RCON_PASSWORD')
+    rcon_port = os.getenv('MINECRAFT_RCON_PORT')
+    temp_dir = os.getenv('TEMP_FOLDER')
+    my_java_args = os.getenv('JAVA_ARGS')
+    custom_motd = os.getenv('MOTD')
+    minecraft_folder = os.getenv('MINECRAFT_FOLDER')
+    baseURL = f'https://www.curseforge.com/api/v1/mods/{curgeForge_api_file_id}/files'
+    backup_folder=os.getenv('BACKUP_FOLDER')
+    temp_folder=os.getenv('TEMP_FOLDER')
+    print(baseURL)
 
-def getServerFileId():
-   
+def getServerFileId(baseURL):
     response = requests.get(f'{baseURL}?pageIndex=0&pageSize=20&sort=dateCreated&sortDescending=true&removeAlphas=true')
     if response.status_code == 200:
         data_latest = response.json()['data'][0]
@@ -39,7 +57,7 @@ def getServerFileId():
             exit()
     else:
         print(f"Error: {response.status_code}")
-def getServerFile(serverFileId):
+def getServerFile(baseURL,serverFileId):
     print('Downloading File')
     filename = f'server_{serverFileId}.zip'
     headers = {
@@ -110,7 +128,7 @@ def update_java_args(new_args):
     except Exception as e:
         print(f"Error updating JAVA_ARGS: {str(e)}")
         return False
-# amazonq-ignore-next-line
+
 def update_server_properties():
     filepath = os.path.join(temp_dir, 'server.properties')
     
@@ -126,7 +144,14 @@ def update_server_properties():
         
         # Create new content with updated properties
         new_content = []
-        properties_updated = {'online-mode': False, 'white-list': False, 'motd': False}
+        properties_updated = {
+            'online-mode': False, 
+            'white-list': False, 
+            'motd': False,
+            'enable-rcon': False,
+            'rcon.port': False,
+            'rcon.password': False
+        }
         
         for line in lines:
             # Skip comments and empty lines
@@ -143,10 +168,25 @@ def update_server_properties():
             elif line.startswith('motd='):
                 new_content.append(f'motd={custom_motd}\n')
                 properties_updated['motd'] = True
+            elif line.startswith('enable-rcon='):
+                new_content.append('enable-rcon=true\n')
+                properties_updated['enable-rcon'] = True
+            elif line.startswith('rcon.port='):
+                new_content.append(f'rcon.port={rcon_port}\n')
+                properties_updated['rcon.port'] = True
+            elif line.startswith('rcon.password='):
+                new_content.append(f'rcon.password={rcon_password}\n')
+                properties_updated['rcon.password'] = True
             else:
                 new_content.append(line)
         
         # Add any properties that weren't found
+        if not properties_updated['enable-rcon']:
+            new_content.append('enable-rcon=true\n')
+        if not properties_updated['rcon.port']:
+            new_content.append(f'rcon.port={rcon_port}\n')
+        if not properties_updated['rcon.password']:
+            new_content.append(f'rcon.password={rcon_password}\n')
         if not properties_updated['online-mode']:
             new_content.append('online-mode=false\n')
         if not properties_updated['white-list']:
@@ -162,9 +202,12 @@ def update_server_properties():
         print(f"- online-mode set to false")
         print(f"- white-list set to true")
         print(f"- motd set to: {custom_motd}")
+        print(f"- enable-rcon set to true")
+        print(f"- rcon.port set to: {rcon_port}")
+        print("- rcon.password updated")
         return True
-        
-   
+    
+    
     except Exception as e:
         print(f"Error updating server.properties: {str(e)}")
         return False
@@ -268,11 +311,11 @@ def copy_server_files():
 
     return success  
 
-
-
-if __name__ == "__main__":
-    serverFileId = getServerFileId()
-    zip_filename = getServerFile(serverFileId)
+def updateServer():
+    initialize_globals()
+    
+    serverFileId = getServerFileId(baseURL)
+    zip_filename = getServerFile(baseURL,serverFileId)
     
     if zip_filename:
         print("Server file downloaded successfully.")
@@ -282,36 +325,21 @@ if __name__ == "__main__":
             print(f"Removed zip file: {zip_filename}")
         else:
             print("Failed to extract server files.")
+            
         update_java_args(my_java_args)
         update_server_properties()
         update_parties_and_claims_config()
         create_eula()
         copy_server_files()
-        set_folder_permissions()
-        if create_backup():
-            print("\nBackup completed successfully!")
-            list_backups()
-        else:
-            print("\nBackup failed!")
-            quit()
-            
-        if stop_docker_compose():
-            check_container_status()
-        else:
-            print("Failed to stop Docker Compose.")
-            quit()
-            
-        copy_world_folder()    
-        replace_folder()
+        set_folder_permissions(minecraft_folder)
+        
+        # start_backup(minecraft_folder,backup_folder)
+        
+        # copy_world_folder(minecraft_folder,temp_folder)    
+        replace_folder(minecraft_folder,temp_folder)
         
         start_script_path = os.path.join(minecraft_folder, 'start.sh')
         os.chmod(start_script_path, 0o755)
-        
-        if start_docker_compose():
-            check_container_status()
-        else:
-            print("Failed to stop Docker Compose.")
-            quit()
         
         
     else:

@@ -1,13 +1,7 @@
 import os
 import shutil
-from dotenv import load_dotenv
 
-load_dotenv()
-
-minecraft_folder = os.getenv('MINECRAFT_FOLDER')
-temp_folder = os.getenv('TEMP_FOLDER')
-
-def replace_minecraft_folder():
+def replace_minecraft_folder(minecraft_folder,temp_folder):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     minecraft_path = os.path.join(script_dir, minecraft_folder)
     temp_path = os.path.join(script_dir, temp_folder)
@@ -50,7 +44,7 @@ def replace_minecraft_folder():
         print(f"Unexpected error: {str(e)}")
         return False
 
-def verify_folders():
+def verify_folders(minecraft_folder,temp_folder):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     minecraft_path = os.path.join(script_dir, minecraft_folder)
     temp_path = os.path.join(script_dir, temp_folder)
@@ -58,7 +52,7 @@ def verify_folders():
     print(f"Temp folder exists: {os.path.exists(temp_path)}")
     print(f"Minecraft folder exists: {os.path.exists(minecraft_path)}")
 
-def copy_world_folder():
+def copy_world_folder(minecraft_folder,temp_folder):
     try:
 
         if not minecraft_folder or not temp_folder:
@@ -92,13 +86,12 @@ def copy_world_folder():
         print(f"Error copying world folder: {str(e)}")
         quit()
 
-
-def replace_folder():
+def replace_folder(minecraft_folder,temp_folder):
     print("Starting folder replacement process...")
-    verify_folders()
-    if replace_minecraft_folder():
+    verify_folders(minecraft_folder,temp_folder)
+    if replace_minecraft_folder(minecraft_folder,temp_folder):
         print("\nFolder replacement completed successfully!")
-        verify_folders()
+        verify_folders(minecraft_folder,temp_folder)
     else:
         print("\nFolder replacement failed!")
         quit()

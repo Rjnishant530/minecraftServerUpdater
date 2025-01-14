@@ -1,16 +1,10 @@
 import os
 import zipfile
 from datetime import datetime
-from dotenv import load_dotenv
 import glob
 import subprocess
 
-load_dotenv()
-    
-minecraft_folder = os.getenv('MINECRAFT_FOLDER')
-backup_folder = '../backups'  # Local backup folder
-
-def set_folder_permissions():
+def set_folder_permissions(minecraft_folder):
     try:
         # Get current user
         current_user = os.environ.get('USER')
@@ -36,8 +30,7 @@ def set_folder_permissions():
     except Exception as e:
         print(f"Error changing ownership: {str(e)}")
         return False
-def create_backup():
-
+def create_backup(minecraft_folder,backup_folder):
     if not minecraft_folder:
         print("Error: MINECRAFT_FOLDER not set in environment variables")
         return False
@@ -94,8 +87,7 @@ def create_backup():
         if os.path.exists(backup_path):
             os.remove(backup_path)
         return False
-
-def list_backups():
+def list_backups(backup_folder):
     """List all existing backups with their creation times."""
     if not os.path.exists(backup_folder):
         print("No backups folder found.")
@@ -117,9 +109,11 @@ def list_backups():
         print(f"{backup_name:<40} {creation_time.strftime('%Y-%m-%d %H:%M:%S')}")
     print("-" * 60)
 
-if __name__ == "__main__":
-    if create_backup():
+def start_backup(minecraft_folder,backup_folder):
+    if create_backup(minecraft_folder,backup_folder):
         print("\nBackup completed successfully!")
-        list_backups()
+        list_backups(backup_folder)
     else:
         print("\nBackup failed!")
+        quit()
+   
